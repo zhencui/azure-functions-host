@@ -13,6 +13,8 @@ namespace Microsoft.Azure.WebJobs.Script
 
         public const string HostMetadataFileName = "host.json";
 
+        public const string ExtensionManifestFileName = "manifest.json";
+
         internal const string FunctionMetadataFileName = "function.json";
     }
 }

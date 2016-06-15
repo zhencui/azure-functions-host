@@ -22,7 +22,7 @@ namespace Microsoft.Azure.WebJobs.Script.Description
     /// or package assemblies.
     /// </summary>
     [CLSCompliant(false)]
-    public sealed class FunctionMetadataResolver : MetadataReferenceResolver, IFunctionMetadataResolver
+    public sealed class FunctionMetadataResolver : MetadataReferenceResolver, IFunctionMetadataResolver, IDisposable
     {
         private readonly string _privateAssembliesPath;
         private readonly string[] _assemblyExtensions = new[] { ".exe", ".dll" };
@@ -31,6 +31,7 @@ namespace Microsoft.Azure.WebJobs.Script.Description
         private readonly TraceWriter _traceWriter;
         private readonly ConcurrentDictionary<string, string> _externalReferences = new ConcurrentDictionary<string, string>();
         private readonly ExtensionSharedAssemblyProvider _extensionSharedAssemblyProvider;
+        private bool disposedValue = false;
 
         private PackageAssemblyResolver _packageAssemblyResolver;
         private ScriptMetadataResolver _scriptResolver;
@@ -257,6 +258,27 @@ namespace Microsoft.Azure.WebJobs.Script.Description
 
             // Reload the resolver
             _packageAssemblyResolver = new PackageAssemblyResolver(_functionMetadata);
+        }
+
+        void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    if (_extensionSharedAssemblyProvider != null)
+                    {
+                        _extensionSharedAssemblyProvider.Dispose();
+                    }
+                }
+
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
         }
     }
 }

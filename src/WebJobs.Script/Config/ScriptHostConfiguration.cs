@@ -17,6 +17,7 @@ namespace Microsoft.Azure.WebJobs.Script
             FileWatchingEnabled = true;
             RootScriptPath = Environment.CurrentDirectory;
             RootLogPath = Path.Combine(Path.GetTempPath(), "Functions");
+            ExtensionsPath = Environment.GetEnvironmentVariable("AzureWebJobsExtensionsRoot") ?? Path.Combine(Environment.CurrentDirectory, "Extensions");
         }
 
         /// <summary>
@@ -33,6 +34,11 @@ namespace Microsoft.Azure.WebJobs.Script
         /// Gets or sets the root path for log files.
         /// </summary>
         public string RootLogPath { get; set; }
+
+        /// <summary>
+        /// Gets or sets the path where binding extensions are installed.
+        /// </summary>
+        public string ExtensionsPath { get; set; }
 
         /// <summary>
         /// Custom TraceWriter to add to the trace pipeline

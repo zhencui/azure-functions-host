@@ -241,6 +241,24 @@ namespace Microsoft.Azure.WebJobs.Script.Description
             }
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (_metadataResolver != null)
+                {
+                    ((IDisposable)_metadataResolver).Dispose();
+                }
+
+                if (_functionValueLoaderLock != null)
+                {
+                    _functionValueLoaderLock.Dispose();
+                }
+            }
+
+            base.Dispose(disposing);
+        }
+
         private object[] ProcessInputParameters(object[] parameters)
         {
             for (int i = 0; i < parameters.Length; i++)

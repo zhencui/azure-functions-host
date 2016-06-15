@@ -118,6 +118,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
                 settings.ScriptPath = Environment.GetEnvironmentVariable("AzureWebJobsScriptRoot");
                 settings.LogPath = Path.Combine(Path.GetTempPath(), @"Functions");
                 settings.SecretsPath = HttpContext.Current.Server.MapPath("~/App_Data/Secrets");
+                settings.ExtensionsPath = Environment.GetEnvironmentVariable("AzureWebJobsExtensionsRoot");
             }
             else
             {
@@ -125,6 +126,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
                 settings.ScriptPath = Path.Combine(home, @"site\wwwroot");
                 settings.LogPath = Path.Combine(home, @"LogFiles\Application\Functions");
                 settings.SecretsPath = Path.Combine(home, @"data\Functions\secrets");
+                settings.ExtensionsPath = Path.Combine(home, @"site\extensions");
             }
 
             if (string.IsNullOrEmpty(settings.ScriptPath))

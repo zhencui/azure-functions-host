@@ -7,6 +7,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
     {
         public bool IsSelfHost { get; set; }
         public string ScriptPath { get; set; }
+        public string ExtensionsPath { get; set; }
         public string LogPath { get; set; }
         public string SecretsPath { get; set; }
     }

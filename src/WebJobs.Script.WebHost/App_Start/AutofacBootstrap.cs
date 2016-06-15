@@ -17,7 +17,8 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
             {
                 RootScriptPath = settings.ScriptPath,
                 RootLogPath = settings.LogPath,
-                FileLoggingEnabled = true
+                FileLoggingEnabled = true,
+                ExtensionsPath = settings.ExtensionsPath
             };
 
             // If running on Azure Web App, derive the host ID from the site name

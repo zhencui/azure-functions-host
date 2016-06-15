@@ -332,6 +332,7 @@ namespace Microsoft.Azure.WebJobs.Script
             return scriptHost;
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2001:AvoidCallingProblematicMethods", MessageId = "System.Reflection.Assembly.LoadFrom")]
         private static Collection<ScriptBindingProvider> LoadBindingProviders(ScriptHostConfiguration config, JObject hostMetadata, TraceWriter traceWriter)
         {
             JobHostConfiguration hostConfig = config.HostConfig;
@@ -340,7 +341,7 @@ namespace Microsoft.Azure.WebJobs.Script
             var bindingProviderTypes = new Collection<Type>()
             {
                 // binding providers defined in this assembly
-                typeof(WebJobsCoreScriptBindingProvider),
+                typeof(WebJobsCoreScriptBindingProvider), 
                 typeof(ServiceBusScriptBindingProvider),
 
                 // binding providers defined in known extension assemblies
@@ -352,6 +353,52 @@ namespace Microsoft.Azure.WebJobs.Script
                 typeof(SendGridScriptBindingProvider)
             };
 
+            // Dynamically discover any additional binding provider types
+            if (!string.IsNullOrEmpty(config.ExtensionsPath) &&
+                Directory.Exists(config.ExtensionsPath))
+            {
+                foreach (var extensionSubDir in Directory.EnumerateDirectories(config.ExtensionsPath))
+                {
+                    string manifestFilePath = Path.Combine(extensionSubDir, ScriptConstants.ExtensionManifestFileName);
+                    JObject manifest = null;
+                    if (File.Exists(manifestFilePath))
+                    {
+                        string manifestJson = File.ReadAllText(manifestFilePath);
+                        manifest = JObject.Parse(manifestJson);
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
+                    string name = (string)manifest["name"];
+                    string assemblyName = (string)manifest["assembly"];
+                    if (!assemblyName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                    {
+                        assemblyName += ".dll";
+                    }
+                    string filePath = Path.Combine(extensionSubDir, assemblyName);
+                    try
+                    {
+                        Assembly assembly = Assembly.LoadFrom(filePath);
+                        if (assembly != null)
+                        {
+                            foreach (var type in assembly.GetExportedTypes().Where(t => typeof(ScriptBindingProvider).IsAssignableFrom(t)))
+                            {
+                                bindingProviderTypes.Add(type);
+                                traceWriter.Verbose(string.Format("{0} binding extension loaded", name));
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore the error if we're unable to load a candidate assembly
+                        // for whatever reason
+                        traceWriter.Error(string.Format("Error loading {0} binding extension", name));
+                    }
+                }
+            }
+            
             // Create the binding providers
             var bindingProviders = new Collection<ScriptBindingProvider>();
             foreach (var bindingProviderType in bindingProviderTypes)
