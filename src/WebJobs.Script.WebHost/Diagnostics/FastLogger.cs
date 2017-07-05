@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Azure.WebJobs.Host.Loggers;
 using Microsoft.Azure.WebJobs.Logging;
+using Microsoft.Azure.WebJobs.Script.Description;
+using Microsoft.Azure.WebJobs.Script.Diagnostics;
 using Microsoft.WindowsAzure.Storage;
 
 namespace Microsoft.Azure.WebJobs.Script.WebHost.Diagnostics
@@ -14,9 +16,20 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Diagnostics
     // Adapter for capturing SDK events and logging them to tables.
     internal class FastLogger : IAsyncCollector<FunctionInstanceLogEntry>
     {
+        private const string Key = "metadata";
+
         private readonly ILogWriter _writer;
 
-        public FastLogger(string hostName, string accountConnectionString, TraceWriter trace)
+        private readonly Func<string, FunctionDescriptor> _funcLookup;
+
+        private readonly IMetricsLogger _metrics;
+
+        public FastLogger(
+            Func<string, FunctionDescriptor> funcLookup,
+            IMetricsLogger metrics,
+            string hostName,
+            string accountConnectionString,
+            TraceWriter trace) : this(funcLookup, metrics)
         {
             if (trace == null)
             {
@@ -31,24 +44,65 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Diagnostics
             this._writer = LogFactory.NewWriter(hostName, containerName, tableProvider, (e) => OnException(e, trace));
         }
 
+        internal FastLogger(
+            Func<string, FunctionDescriptor> funcLookup,
+            IMetricsLogger metrics)
+        {
+            _metrics = metrics;
+            _funcLookup = funcLookup;
+        }
+
         public async Task AddAsync(FunctionInstanceLogEntry item, CancellationToken cancellationToken = default(CancellationToken))
         {
-            await _writer.AddAsync(new FunctionInstanceLogItem
+            PerInstanceState state;
+            item.Properties.TryGetValue(Key, out state);
+
+            if (item.EndTime.HasValue)
             {
-                FunctionInstanceId = item.FunctionInstanceId,
-                FunctionName = Utility.GetFunctionShortName(item.FunctionName),
-                StartTime = item.StartTime,
-                EndTime = item.EndTime,
-                TriggerReason = item.TriggerReason,
-                Arguments = item.Arguments,
-                ErrorDetails = item.ErrorDetails,
-                LogOutput = item.LogOutput,
-                ParentId = item.ParentId
-            });
+                // Completed
+                bool success = item.ErrorDetails == null;
+                state.End(success);
+            }
+            else
+            {
+                // Started
+                if (state == null)
+                {
+                    string shortName = Utility.GetFunctionShortName(item.FunctionName);
+
+                    FunctionDescriptor descr = _funcLookup(shortName);
+                    FunctionLogInfo logInfo = descr.Invoker.LogInfo;
+                    state = new PerInstanceState(descr.Metadata, _metrics, item.FunctionInstanceId, logInfo);
+
+                    item.Properties[Key] = state;
+
+                    state.Start();
+                }
+            }
+
+            if (_writer != null)
+            {
+                await _writer.AddAsync(new FunctionInstanceLogItem
+                {
+                    FunctionInstanceId = item.FunctionInstanceId,
+                    FunctionName = Utility.GetFunctionShortName(item.FunctionName),
+                    StartTime = item.StartTime,
+                    EndTime = item.EndTime,
+                    TriggerReason = item.TriggerReason,
+                    Arguments = item.Arguments,
+                    ErrorDetails = item.ErrorDetails,
+                    LogOutput = item.LogOutput,
+                    ParentId = item.ParentId
+                });
+            }
         }
 
         public Task FlushAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
+            if (_writer == null)
+            {
+                return Task.CompletedTask;
+            }
             return _writer.FlushAsync();
         }
 
