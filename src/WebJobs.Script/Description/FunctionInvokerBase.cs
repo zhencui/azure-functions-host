@@ -49,7 +49,7 @@ namespace Microsoft.Azure.WebJobs.Script.Description
 
         protected ILogger Logger => LogInfo.Logger;
 
-        public TraceWriter FileTraceWriter => LogInfo.FileTraceWriter;
+        internal TraceWriter FileTraceWriter => LogInfo.FileTraceWriter;
 
         /// <summary>
         /// All unhandled invocation exceptions will flow through this method.

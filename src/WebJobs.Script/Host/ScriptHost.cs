@@ -248,11 +248,21 @@ namespace Microsoft.Azure.WebJobs.Script
         {
             // TODO: Validate inputs
             // TODO: Cache this lookup result
+            // $$$  NEed SDK object to look this up, respect [FunctionName]
             method = method.ToLowerInvariant();
-            Type type = ScriptConfig.HostConfig.TypeLocator.GetTypes().SingleOrDefault(p => p.Name == ScriptHost.GeneratedTypeName);
-            var methodInfo = type.GetMethods().SingleOrDefault(p => p.Name.ToLowerInvariant() == method);
+            var typeLocator = ScriptConfig.HostConfig.TypeLocator;
+            foreach (var type in typeLocator.GetTypes())
+            {
+                // Type type = ScriptConfig.HostConfig.TypeLocator.GetTypes().SingleOrDefault(p => p.Name == ScriptHost.GeneratedTypeName);
+                var methodInfo = type.GetMethods().SingleOrDefault(p => p.Name.ToLowerInvariant() == method);
+                if (methodInfo != null)
+                {
+                    await CallAsync(methodInfo, arguments, cancellationToken);
+                    return;
+                }
+            }
 
-            await CallAsync(methodInfo, arguments, cancellationToken);
+            // $$$ no method found, caller should have caught it.
         }
 
         protected virtual void Initialize()
@@ -467,6 +477,8 @@ namespace Microsoft.Azure.WebJobs.Script
                 List<Type> types = new List<Type>();
                 types.Add(type);
 
+                AddDirectTypes(types, functions);
+
                 hostConfig.TypeLocator = new TypeLocator(types);
 
                 Functions = functions;
@@ -474,6 +486,34 @@ namespace Microsoft.Azure.WebJobs.Script
                 if (ScriptConfig.FileLoggingMode != FileLoggingMode.Never)
                 {
                     PurgeOldLogDirectories();
+                }
+            }
+        }
+
+        private static void AddDirectTypes(List<Type> types, Collection<FunctionDescriptor> functions)
+        {
+            HashSet<Type> x = new HashSet<Type>();
+
+            foreach (var function in functions)
+            {
+                var metadata = function.Metadata;
+                if (!metadata.IsDirect)
+                {
+                    continue;
+                }
+
+                string path = metadata.ScriptFile;
+                string entryPoint = metadata.EntryPoint; // "Namespace.Class.Method"
+
+                int i = entryPoint.LastIndexOf('.');
+                var typeName = entryPoint.Substring(0, i);
+
+                Assembly assembly = Assembly.LoadFrom(path);
+                var type = assembly.GetType(typeName);
+
+                if (x.Add(type))
+                {
+                    types.Add(type);
                 }
             }
         }
@@ -916,6 +956,8 @@ namespace Microsoft.Azure.WebJobs.Script
 
             // determine the script type based on the primary script file extension
             functionMetadata.ScriptType = ParseScriptType(functionMetadata.ScriptFile);
+
+            functionMetadata.IsDirect = (bool)functionConfig["IsDirect"];
 
             functionMetadata.EntryPoint = (string)functionConfig["entryPoint"];
 
