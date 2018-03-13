@@ -23,20 +23,22 @@ namespace Microsoft.Azure.WebJobs.Script.Tests.Handlers
     {
         private readonly TestTraceWriter _traceWriter;
         private readonly HttpMessageInvoker _invoker;
+        private readonly SystemTraceHandler _handler;
+        private readonly Mock<IDependencyResolver> _mockResolver;
 
         public SystemTraceHandlerTests()
         {
             _traceWriter = new TestTraceWriter(TraceLevel.Verbose);
             var config = new System.Web.Http.HttpConfiguration();
-            Mock<IDependencyResolver> mockResolver = new Mock<IDependencyResolver>(MockBehavior.Strict);
-            mockResolver.Setup(p => p.GetService(typeof(TraceWriter))).Returns(_traceWriter);
-            config.DependencyResolver = mockResolver.Object;
+            _mockResolver = new Mock<IDependencyResolver>(MockBehavior.Strict);
+            _mockResolver.Setup(p => p.GetService(typeof(TraceWriter))).Returns(_traceWriter);
+            config.DependencyResolver = _mockResolver.Object;
 
-            var handler = new SystemTraceHandler(config)
+            _handler = new SystemTraceHandler(config)
             {
                 InnerHandler = new TestHandler()
             };
-            _invoker = new HttpMessageInvoker(handler);
+            _invoker = new HttpMessageInvoker(_handler);
         }
 
         [Fact]
@@ -84,6 +86,16 @@ namespace Microsoft.Azure.WebJobs.Script.Tests.Handlers
             SystemTraceHandler.SetRequestId(request);
             requestId = request.GetRequestId();
             Guid.Parse(requestId);
+        }
+
+        [Fact]
+        public void TraceWriter_ReturnsExpectedValue()
+        {
+            var instance = _handler.TraceWriter;
+            instance = _handler.TraceWriter;
+            instance = _handler.TraceWriter;
+
+            _mockResolver.Verify(p => p.GetService(typeof(TraceWriter)), Times.Exactly(3));
         }
     }
 }

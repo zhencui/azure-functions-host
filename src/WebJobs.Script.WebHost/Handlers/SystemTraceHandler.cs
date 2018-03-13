@@ -10,32 +10,26 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using Microsoft.Azure.WebJobs.Host;
 using Newtonsoft.Json.Linq;
-using Microsoft.Azure.WebJobs.Script;
 
 namespace Microsoft.Azure.WebJobs.Script.WebHost.Handlers
 {
     public class SystemTraceHandler : DelegatingHandler
     {
         private readonly HttpConfiguration _config;
-        private TraceWriter _traceWriter;
 
         public SystemTraceHandler(HttpConfiguration config)
         {
             _config = config;
         }
 
-        private TraceWriter TraceWriter
+        internal TraceWriter TraceWriter
         {
             get
             {
-                if (_traceWriter == null)
-                {
-                    _traceWriter = _config.DependencyResolver
-                        .GetService<TraceWriter>()
-                        .WithDefaults(ScriptConstants.TraceSourceHttpHandler);
-                }
-
-                return _traceWriter;
+                // return the active TraceWriter instance
+                return _config.DependencyResolver
+                    .GetService<TraceWriter>()
+                    .WithDefaults(ScriptConstants.TraceSourceHttpHandler);
             }
         }
 
