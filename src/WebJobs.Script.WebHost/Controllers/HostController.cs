@@ -4,6 +4,8 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO.Abstractions;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,11 +15,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.WebApiCompatShim;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Azure.WebJobs.Script.WebHost.Authentication;
+using Microsoft.Azure.WebJobs.Script.WebHost.Controllers.Results;
+using Microsoft.Azure.WebJobs.Script.WebHost.Extensions;
 using Microsoft.Azure.WebJobs.Script.WebHost.Filters;
 using Microsoft.Azure.WebJobs.Script.WebHost.Management;
 using Microsoft.Azure.WebJobs.Script.WebHost.Models;
 using Microsoft.Azure.WebJobs.Script.WebHost.Security.Authorization.Policies;
 using Microsoft.Extensions.Logging;
+using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 
 namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
@@ -139,6 +144,36 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
             return success
                 ? Ok(new { status = "success" })
                 : StatusCode(StatusCodes.Status500InternalServerError, new { status = error });
+        }
+
+        [HttpGet]
+        [Route("admin/host/download")]
+        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        public IActionResult Download()
+        {
+            var path = _scriptHostManager.Instance.ScriptConfig.RootScriptPath;
+            var dirInfo = FileUtility.DirectoryInfoFromDirectoryName(path);
+            return new FileCallbackResult(new MediaTypeHeaderValue("application/octet-stream"), async (outputStream, _) =>
+            {
+                using (var zipArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
+                {
+                    foreach (FileSystemInfoBase fileSysInfo in dirInfo.GetFileSystemInfos())
+                    {
+                        if (fileSysInfo is DirectoryInfoBase directoryInfo)
+                        {
+                            await zipArchive.AddDirectory(directoryInfo, fileSysInfo.Name);
+                        }
+                        else
+                        {
+                            // Add it at the root of the zip
+                            await zipArchive.AddFile(fileSysInfo.FullName, string.Empty);
+                        }
+                    }
+                }
+            })
+            {
+                FileDownloadName = (System.Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME") ?? "functions") + ".zip"
+            };
         }
 
         [HttpGet]

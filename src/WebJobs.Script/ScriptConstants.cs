@@ -41,6 +41,7 @@ namespace Microsoft.Azure.WebJobs.Script
 
         public const string LogCategoryHostController = "Host.Controllers.Host";
         public const string LogCategoryFunctionsController = "Host.Controllers.Functions";
+        public const string LogCategoryInstanceController = "Host.Controllers.Instance";
         public const string LogCategoryKeysController = "Host.Controllers.Keys";
         public const string LogCategoryHostGeneral = "Host.General";
         public const string LogCategoryHostMetrics = "Host.Metrics";
@@ -105,6 +106,11 @@ namespace Microsoft.Azure.WebJobs.Script
         public const string LinuxLogEventStreamName = "MS_FUNCTION_LOGS";
         public const string LinuxMetricEventStreamName = "MS_FUNCTION_METRICS";
         public const string LinuxFunctionDetailsEventStreamName = "MS_FUNCTION_DETAILS";
+
+        public const string RunFromZipSettingName = "WEBSITE_RUN_FROM_ZIP";
+        public const string RunFromZipAltSettingName = "WEBSITE_USE_ZIP";
+        public const string ContainerGroupName = "CONTAINER_NAME";
+        public const string ContainerEncryptionKey = "CONTAINER_ENCRYPTION_KEY";
 
         public static readonly ImmutableArray<string> HttpMethods = ImmutableArray.Create("get", "post", "delete", "head", "patch", "put", "options");
         public static readonly ImmutableArray<string> AssemblyFileTypes = ImmutableArray.Create(".dll", ".exe");
