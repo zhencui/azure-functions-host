@@ -50,7 +50,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpGet]
         [Route("admin/host/status")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevelOrInternal)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevelOrInternal)]
         [EnableDebugMode]
         public IActionResult GetHostStatus()
         {
@@ -84,7 +84,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpPost]
         [Route("admin/host/log")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevelOrInternal)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevelOrInternal)]
         public IActionResult Log([FromBody]IEnumerable<HostLogEntry> logEntries)
         {
             if (logEntries == null)
@@ -113,7 +113,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpPost]
         [Route("admin/host/debug")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
         [EnableDebugMode]
         public IActionResult LaunchDebugger()
         {
@@ -135,7 +135,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpPost]
         [Route("admin/host/synctriggers")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
         public async Task<IActionResult> SyncTriggers()
         {
             (var success, var error) = await _functionsManager.TrySyncTriggers();
@@ -148,7 +148,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpGet]
         [Route("admin/host/download")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
         public IActionResult Download()
         {
             var path = _scriptHostManager.Instance.ScriptConfig.RootScriptPath;
@@ -178,7 +178,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpGet]
         [HttpPost]
-        [Authorize(AuthenticationSchemes = AuthLevelAuthenticationDefaults.AuthenticationScheme)]
+        //[Authorize(AuthenticationSchemes = AuthLevelAuthenticationDefaults.AuthenticationScheme)]
         [RequiresRunningHost]
         [Route("runtime/webhooks/{name}/{*extra}")]
         public async Task<IActionResult> ExtensionWebHookHandler(string name, CancellationToken token)

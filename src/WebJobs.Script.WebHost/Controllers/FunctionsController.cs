@@ -40,7 +40,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpGet]
         [Route("admin/functions")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
         public async Task<IActionResult> List()
         {
             return Ok(await _functionsManager.GetFunctionsMetadata(Request));
@@ -48,7 +48,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpGet]
         [Route("admin/functions/{name}")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
         public async Task<IActionResult> Get(string name)
         {
             (var success, var function) = await _functionsManager.TryGetFunction(name, Request);
@@ -60,7 +60,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpPut]
         [Route("admin/functions/{name}")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
         public async Task<IActionResult> CreateOrUpdate(string name, [FromBody] FunctionMetadataResponse functionMetadata)
         {
             if (!FunctionNameValidationRegex.IsMatch(name))
@@ -87,7 +87,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpPost]
         [Route("admin/functions/{name}")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
         [RequiresRunningHost]
         public IActionResult Invoke(string name, [FromBody] FunctionInvocation invocation)
         {
@@ -114,7 +114,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpGet]
         [Route("admin/functions/{name}/status")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
         [RequiresRunningHost]
         public IActionResult GetFunctionStatus(string name)
         {
@@ -142,7 +142,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpDelete]
         [Route("admin/functions/{name}")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
         public async Task<IActionResult> Delete(string name)
         {
             (var found, var function) = await _functionsManager.TryGetFunction(name, Request);
