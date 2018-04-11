@@ -198,6 +198,11 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
 
         public static string VfsUriToFilePath(Uri uri, ScriptHostConfiguration config, bool isDirectory = false)
         {
+            if (uri == null)
+            {
+                return null;
+            }
+
             var home = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? ScriptSettingsManager.Instance.GetSetting(EnvironmentSettingNames.AzureWebsiteHomePath) ?? config.RootScriptPath
                 : Path.DirectorySeparatorChar.ToString();
