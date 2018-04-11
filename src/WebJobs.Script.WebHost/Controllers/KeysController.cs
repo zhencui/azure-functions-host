@@ -15,7 +15,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 {
-    [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+    //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
     public class KeysController : Controller
     {
         private const string MasterKeyName = "_master";
