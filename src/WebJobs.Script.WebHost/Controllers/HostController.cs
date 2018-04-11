@@ -146,6 +146,16 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
                 : StatusCode(StatusCodes.Status500InternalServerError, new { status = error });
         }
 
+        [HttpPost]
+        [Route("admin/host/restart")]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        public IActionResult Restart()
+        {
+            _scriptHostManager.RestartHost();
+            return Ok(_webHostSettings);
+        }
+
+
         [HttpGet]
         [Route("admin/host/download")]
         //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
