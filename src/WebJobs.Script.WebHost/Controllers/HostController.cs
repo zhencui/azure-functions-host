@@ -4,6 +4,8 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO.Abstractions;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,10 +15,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.WebApiCompatShim;
 using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Azure.WebJobs.Script.WebHost.Authentication;
+using Microsoft.Azure.WebJobs.Script.WebHost.Controllers.Results;
+using Microsoft.Azure.WebJobs.Script.WebHost.Extensions;
 using Microsoft.Azure.WebJobs.Script.WebHost.Filters;
+using Microsoft.Azure.WebJobs.Script.WebHost.Management;
 using Microsoft.Azure.WebJobs.Script.WebHost.Models;
 using Microsoft.Azure.WebJobs.Script.WebHost.Security.Authorization.Policies;
 using Microsoft.Extensions.Logging;
+using Microsoft.Net.Http.Headers;
 using Newtonsoft.Json;
 
 namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
@@ -31,18 +37,20 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
         private readonly WebHostSettings _webHostSettings;
         private readonly ILogger _logger;
         private readonly IAuthorizationService _authorizationService;
+        private readonly IWebFunctionsManager _functionsManager;
 
-        public HostController(WebScriptHostManager scriptHostManager, WebHostSettings webHostSettings, ILoggerFactory loggerFactory, IAuthorizationService authorizationService)
+        public HostController(WebScriptHostManager scriptHostManager, WebHostSettings webHostSettings, ILoggerFactory loggerFactory, IAuthorizationService authorizationService, IWebFunctionsManager functionsManager)
         {
             _scriptHostManager = scriptHostManager;
             _webHostSettings = webHostSettings;
             _logger = loggerFactory.CreateLogger(ScriptConstants.LogCategoryHostController);
             _authorizationService = authorizationService;
+            _functionsManager = functionsManager;
         }
 
         [HttpGet]
         [Route("admin/host/status")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevelOrInternal)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevelOrInternal)]
         [EnableDebugMode]
         public IActionResult GetHostStatus()
         {
@@ -76,7 +84,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpPost]
         [Route("admin/host/log")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevelOrInternal)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevelOrInternal)]
         public IActionResult Log([FromBody]IEnumerable<HostLogEntry> logEntries)
         {
             if (logEntries == null)
@@ -105,7 +113,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 
         [HttpPost]
         [Route("admin/host/debug")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
         [EnableDebugMode]
         public IActionResult LaunchDebugger()
         {
@@ -125,9 +133,62 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
             return StatusCode(StatusCodes.Status501NotImplemented);
         }
 
+        [HttpPost]
+        [Route("admin/host/synctriggers")]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        public async Task<IActionResult> SyncTriggers()
+        {
+            (var success, var error) = await _functionsManager.TrySyncTriggers();
+
+            // Return a dummy body to make it valid in ARM template action evaluation
+            return success
+                ? Ok(new { status = "success" })
+                : StatusCode(StatusCodes.Status500InternalServerError, new { status = error });
+        }
+
+        [HttpPost]
+        [Route("admin/host/restart")]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        public IActionResult Restart()
+        {
+            _scriptHostManager.RestartHost();
+            return Ok(_webHostSettings);
+        }
+
+
+        [HttpGet]
+        [Route("admin/host/download")]
+        //[Authorize(Policy = PolicyNames.AdminAuthLevel)]
+        public IActionResult Download()
+        {
+            var path = _scriptHostManager.Instance.ScriptConfig.RootScriptPath;
+            var dirInfo = FileUtility.DirectoryInfoFromDirectoryName(path);
+            return new FileCallbackResult(new MediaTypeHeaderValue("application/octet-stream"), async (outputStream, _) =>
+            {
+                using (var zipArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
+                {
+                    foreach (FileSystemInfoBase fileSysInfo in dirInfo.GetFileSystemInfos())
+                    {
+                        if (fileSysInfo is DirectoryInfoBase directoryInfo)
+                        {
+                            await zipArchive.AddDirectory(directoryInfo, fileSysInfo.Name);
+                        }
+                        else
+                        {
+                            // Add it at the root of the zip
+                            await zipArchive.AddFile(fileSysInfo.FullName, string.Empty);
+                        }
+                    }
+                }
+            })
+            {
+                FileDownloadName = (System.Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME") ?? "functions") + ".zip"
+            };
+        }
+
         [HttpGet]
         [HttpPost]
-        [Authorize(AuthenticationSchemes = AuthLevelAuthenticationDefaults.AuthenticationScheme)]
+        //[Authorize(AuthenticationSchemes = AuthLevelAuthenticationDefaults.AuthenticationScheme)]
         [RequiresRunningHost]
         [Route("runtime/webhooks/{name}/{*extra}")]
         public async Task<IActionResult> ExtensionWebHookHandler(string name, CancellationToken token)
