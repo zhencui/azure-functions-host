@@ -56,6 +56,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers.Results
             {
                 return _callback;
             }
+
             set
             {
                 if (value == null)
