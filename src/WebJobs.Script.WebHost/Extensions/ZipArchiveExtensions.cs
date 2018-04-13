@@ -1,4 +1,7 @@
-﻿using System;
+﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the MIT License. See License.txt in the project root for license information.
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Abstractions;
@@ -57,7 +60,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Extensions
             {
                 fileStream = file.OpenRead();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // tolerate if file in use.
                 // for simplicity, any exception.

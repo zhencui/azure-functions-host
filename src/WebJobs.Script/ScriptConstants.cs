@@ -109,13 +109,13 @@ namespace Microsoft.Azure.WebJobs.Script
 
         public const string RunFromZipSettingName = "WEBSITE_RUN_FROM_ZIP";
         public const string RunFromZipAltSettingName = "WEBSITE_USE_ZIP";
-        public const string ContainerGroupName = "CONTAINER_NAME";
+        public const string ContainerName = "CONTAINER_NAME";
         public const string ContainerEncryptionKey = "CONTAINER_ENCRYPTION_KEY";
-
-        public static readonly ImmutableArray<string> HttpMethods = ImmutableArray.Create("get", "post", "delete", "head", "patch", "put", "options");
-        public static readonly ImmutableArray<string> AssemblyFileTypes = ImmutableArray.Create(".dll", ".exe");
 
         public const string DurableTaskPropertyName = "durableTask";
         public const string DurableTaskHubName = "HubName";
+
+        public static readonly ImmutableArray<string> HttpMethods = ImmutableArray.Create("get", "post", "delete", "head", "patch", "put", "options");
+        public static readonly ImmutableArray<string> AssemblyFileTypes = ImmutableArray.Create(".dll", ".exe");
     }
 }

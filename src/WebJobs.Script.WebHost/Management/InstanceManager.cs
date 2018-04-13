@@ -13,8 +13,8 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
 {
     public class InstanceManager : IInstanceManager
     {
+        private static readonly object AssignmentLock = new object();
         private static AssignmentContext _assignmentContext;
-        private static object _assignmentLock = new object();
 
         private readonly ScriptHostManager _scriptHostManager;
         private readonly WebHostSettings _webHostSettings;
@@ -31,7 +31,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
         {
             if (_assignmentContext == null)
             {
-                lock (_assignmentLock)
+                lock (AssignmentLock)
                 {
                     if (_assignmentContext != null)
                     {
