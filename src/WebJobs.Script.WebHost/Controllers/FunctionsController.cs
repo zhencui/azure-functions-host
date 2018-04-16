@@ -125,6 +125,8 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
             if (_scriptHostManager.Instance.FunctionErrors.TryGetValue(name, out functionErrors))
             {
                 status.Errors = functionErrors;
+
+
             }
             else
             {
