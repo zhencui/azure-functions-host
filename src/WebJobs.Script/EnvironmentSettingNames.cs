@@ -27,5 +27,7 @@ namespace Microsoft.Azure.WebJobs.Script
         public const string ProxySiteExtensionEnabledKey = "ROUTING_EXTENSION_VERSION";
         public const string FunctionsExtensionVersion = "FUNCTIONS_EXTENSION_VERSION";
         public const string ContainerName = "CONTAINER_NAME";
+        public const string ContainerStartContext = "CONTAINER_START_CONTEXT";
+        public const string ContainerStartContextSasUri = "CONTAINER_START_CONTEXT_SAS_URI";
     }
 }

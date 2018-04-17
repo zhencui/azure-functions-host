@@ -54,5 +54,13 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
         {
             return Ok(_instanceManager.GetInstanceInfo());
         }
+
+        [HttpGet]
+        [Route("admin/instance/restarthost")]
+        public IActionResult RestartHost()
+        {
+            _scriptHostManager.RestartHost();
+            return Ok(StatusCodes.Status426UpgradeRequired);
+        }
     }
 }

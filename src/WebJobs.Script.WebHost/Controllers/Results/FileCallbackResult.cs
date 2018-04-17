@@ -22,6 +22,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers.Results
         private Func<Stream, ActionContext, Task> _callback;
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="FileCallbackResult"/> class.
         /// Creates a new <see cref="FileCallbackResult"/> instance.
         /// </summary>
         /// <param name="contentType">The Content-Type header of the response.</param>
@@ -32,6 +33,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers.Results
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="FileCallbackResult"/> class.
         /// Creates a new <see cref="FileCallbackResult"/> instance.
         /// </summary>
         /// <param name="contentType">The Content-Type header of the response.</param>
