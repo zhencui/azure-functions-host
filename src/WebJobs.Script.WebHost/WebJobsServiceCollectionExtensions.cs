@@ -63,7 +63,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
                 .AddXmlDataContractSerializerFormatters();
 
             services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, WebJobsScriptHostService>());
-            services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ContainerInitializationService>());
+//            services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ContainerInitializationService>());
 
             // TODO: This is a direct port from the current model.
             // Some of those services (or the way we register them) may need to change
