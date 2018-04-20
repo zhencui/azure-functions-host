@@ -57,8 +57,8 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Models
             foreach (var pair in Environment)
             {
                 System.Environment.SetEnvironmentVariable(pair.Key, pair.Value);
-                ScriptSettingsManager.Instance.SetSetting(pair.Key, pair.Value);
             }
+            ScriptSettingsManager.Instance.Reset();
         }
     }
 }
