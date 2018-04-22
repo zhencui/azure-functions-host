@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
+using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -9,6 +10,7 @@ using Microsoft.Azure.WebJobs.Script.Config;
 using Microsoft.Azure.WebJobs.Script.WebHost.Management;
 using Microsoft.Azure.WebJobs.Script.WebHost.Models;
 using Microsoft.Azure.WebJobs.Script.WebHost.Security.Authorization.Policies;
+using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
 {
@@ -17,12 +19,14 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
         private readonly WebScriptHostManager _scriptHostManager;
         private readonly ScriptSettingsManager _settingsManager;
         private readonly IInstanceManager _instanceManager;
+        private readonly ILogger _logger;
 
-        public InstanceController(WebScriptHostManager scriptHostManager, ScriptSettingsManager settingsManager, IInstanceManager instanceManager)
+        public InstanceController(WebScriptHostManager scriptHostManager, ScriptSettingsManager settingsManager, IInstanceManager instanceManager, ILoggerFactory loggerFactory)
         {
             _scriptHostManager = scriptHostManager;
             _settingsManager = settingsManager;
             _instanceManager = instanceManager;
+            _logger = loggerFactory.CreateLogger(nameof(InstanceController));
         }
 
         [HttpPost]
@@ -30,6 +34,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
         //[Authorize(Policy = PolicyNames.AdminAuthLevelOrInternal)]
         public IActionResult Assign([FromBody] EncryptedAssignmentContext encryptedAssignmentContext)
         {
+            _logger.LogInformation($"Assign called at {DateTime.UtcNow}");
             var containerKey = _settingsManager.GetSetting(ScriptConstants.ContainerEncryptionKey);
             var assignmentContext = encryptedAssignmentContext.Decrypt(containerKey);
             return _instanceManager.TryAssign(assignmentContext)
@@ -42,6 +47,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
         //[Authorize(Policy = PolicyNames.AdminAuthLevelOrInternal)]
         public async Task<IActionResult> GetInstanceStatus([FromQuery] int timeout = int.MaxValue)
         {
+            _logger.LogInformation($"GetInstanceStatus called at {DateTime.UtcNow}");
             return await _scriptHostManager.DelayUntilHostReady(timeoutSeconds: timeout)
                 ? Ok()
                 : StatusCode(StatusCodes.Status503ServiceUnavailable);
@@ -59,6 +65,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
         [Route("admin/instance/restarthost")]
         public IActionResult RestartHost()
         {
+            _logger.LogInformation($"RestartHost called at {DateTime.UtcNow}");
             _scriptHostManager.RestartHost();
             return Ok(StatusCodes.Status426UpgradeRequired);
         }

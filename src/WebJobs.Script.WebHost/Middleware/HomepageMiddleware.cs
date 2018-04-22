@@ -7,16 +7,19 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs.Script.Config;
 using Microsoft.Azure.WebJobs.Script.WebHost.Features;
+using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Azure.WebJobs.Script.WebHost.Middleware
 {
     public class HomepageMiddleware
     {
         private readonly RequestDelegate _next;
+        private readonly ILogger _logger;
 
-        public HomepageMiddleware(RequestDelegate next)
+        public HomepageMiddleware(RequestDelegate next, ILoggerFactory loggerFactory)
         {
             _next = next;
+            _logger = loggerFactory.CreateLogger(nameof(HomepageMiddleware));
         }
 
         public static bool IsHomepageDisabled
@@ -37,6 +40,8 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Middleware
             if (functionExecution == null
                 && context.Request.Path.Value == "/")
             {
+                _logger.LogInformation($"GET / called at {DateTime.UtcNow}");
+
                 IActionResult result = null;
 
                 if (IsHomepageDisabled)
