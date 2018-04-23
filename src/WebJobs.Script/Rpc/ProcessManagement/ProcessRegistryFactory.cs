@@ -12,7 +12,7 @@ namespace Microsoft.Azure.WebJobs.Script.Rpc
         {
             // W3WP already manages job objects
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                && !ScriptSettingsManager.Instance.IsAppServiceEnvironment)
+                && !ScriptSettingsManager.Instance.IsAzureEnvironment)
             {
                 return new JobObjectRegistry();
             }

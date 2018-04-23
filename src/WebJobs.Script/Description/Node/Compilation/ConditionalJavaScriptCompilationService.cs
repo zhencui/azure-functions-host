@@ -120,13 +120,12 @@ namespace Microsoft.Azure.WebJobs.Script.Description
         private string GetSentinelFilePath(string functionName)
         {
             string home = null;
-            if (_settingsManager.IsAppServiceEnvironment)
+            if (_settingsManager.IsAzureEnvironment)
             {
                 home = _settingsManager.GetSetting(EnvironmentSettingNames.AzureWebsiteHomePath);
             }
             else
             {
-                // Local hosting or Linux container scenarios
                 home = Path.Combine(Path.GetTempPath(), "AzureFunctions");
             }
 

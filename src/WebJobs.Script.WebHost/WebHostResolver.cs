@@ -251,9 +251,9 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
 
         private static void InitializeFileSystem(WebHostSettings settings, bool readOnlyFileSystem)
         {
-            if (ScriptSettingsManager.Instance.IsAppServiceEnvironment)
+            if (ScriptSettingsManager.Instance.IsAzureEnvironment)
             {
-                // When running on App Service, we kick this off on the background
+                // When running on Azure, we kick this off on the background
                 Task.Run(() =>
                 {
                     string home = ScriptSettingsManager.Instance.GetSetting(EnvironmentSettingNames.AzureWebsiteHomePath);

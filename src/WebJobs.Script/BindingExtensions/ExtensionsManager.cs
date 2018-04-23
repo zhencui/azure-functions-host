@@ -124,9 +124,10 @@ namespace Microsoft.Azure.WebJobs.Script.BindingExtensions
                     startInfo.Arguments += $" --configfile \"{nugetPath}\"";
                 }
 
-                if (ScriptSettingsManager.Instance.IsAppServiceEnvironment)
+                if (ScriptSettingsManager.Instance.IsAzureEnvironment)
                 {
                     string nugetCacheLocation = Path.Combine(ScriptSettingsManager.Instance.GetSetting(EnvironmentSettingNames.AzureWebsiteHomePath), ".nuget");
+
                     startInfo.Arguments += $" --packages \"{nugetCacheLocation}\"";
                 }
 

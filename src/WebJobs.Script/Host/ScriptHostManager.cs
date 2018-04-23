@@ -122,9 +122,7 @@ namespace Microsoft.Azure.WebJobs.Script
         {
             get
             {
-                // Not currently enabled for Linux containers (since the sandbox environment
-                // setting for perf counters isn't present)
-                return _config.HostHealthMonitor.Enabled && _settingsManager.IsAppServiceEnvironment;
+                return _config.HostHealthMonitor.Enabled && _settingsManager.IsAzureEnvironment;
             }
         }
 

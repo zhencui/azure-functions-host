@@ -23,8 +23,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
             _encryptionSupported = IsEncryptionSupported();
         }
 
-        // In Linux Containers AzureWebsiteLocalEncryptionKey will be set, enabling encryption
-        private static bool IsEncryptionSupported() => _settingsManager.IsAppServiceEnvironment || _settingsManager.GetSetting(AzureWebsiteLocalEncryptionKey) != null;
+        private static bool IsEncryptionSupported() => _settingsManager.IsAzureEnvironment || _settingsManager.GetSetting(AzureWebsiteLocalEncryptionKey) != null;
 
         public IKeyValueReader GetValueReader(Key key)
         {

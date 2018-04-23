@@ -77,7 +77,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
 
             builder.Register<IEventGenerator>(c =>
             {
-                if (settingsManager.IsLinuxContainerEnvironment)
+                if (settingsManager.IsLinuxContainer)
                 {
                     return new LinuxContainerEventGenerator();
                 }
