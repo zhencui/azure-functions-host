@@ -498,16 +498,22 @@ namespace Microsoft.Azure.WebJobs.Script
             _descriptorProviders = new List<FunctionDescriptorProvider>();
             if (string.IsNullOrEmpty(language))
             {
+                _startupLogger.LogTrace("Adding all the Function descriptors.");
                 _descriptorProviders.Add(new DotNetFunctionDescriptorProvider(this, ScriptConfig));
                 _descriptorProviders.Add(new WorkerFunctionDescriptorProvider(this, ScriptConfig, _functionDispatcher));
-            }
-            else if (language.Equals(ScriptConstants.DotNetLanguageWorkerName, StringComparison.OrdinalIgnoreCase))
-            {
-                _descriptorProviders.Add(new DotNetFunctionDescriptorProvider(this, ScriptConfig));
             }
             else
             {
-                _descriptorProviders.Add(new WorkerFunctionDescriptorProvider(this, ScriptConfig, _functionDispatcher));
+                _startupLogger.LogTrace($"Adding Function descriptor for language {language}.");
+                switch (language.ToLower())
+                {
+                    case ScriptConstants.DotNetLanguageWorkerName:
+                        _descriptorProviders.Add(new DotNetFunctionDescriptorProvider(this, ScriptConfig));
+                        break;
+                    default:
+                        _descriptorProviders.Add(new WorkerFunctionDescriptorProvider(this, ScriptConfig, _functionDispatcher));
+                        break;
+                }
             }
 
             Collection<FunctionDescriptor> functions;
@@ -645,7 +651,7 @@ namespace Microsoft.Azure.WebJobs.Script
             string sanitizedJson = SanitizeHostJson(hostConfigObject);
             string readFileMessage = $"Host configuration file read:{Environment.NewLine}{sanitizedJson}";
 
-            ApplyConfiguration(hostConfigObject, ScriptConfig);
+            ApplyConfiguration(hostConfigObject, ScriptConfig, _startupLogger);
 
             if (_settingsManager.FileSystemIsReadOnly)
             {
@@ -733,7 +739,7 @@ namespace Microsoft.Azure.WebJobs.Script
                 // TODO: We still have some hard coded languages, so we need to handle them. Remove this switch once we've moved away from that.
                 switch (language.ToLower())
                 {
-                    case ScriptConstants.NodeLanguageWrokerName:
+                    case ScriptConstants.NodeLanguageWorkerName:
                         providers.Add(new NodeWorkerProvider());
                         break;
                     case ScriptConstants.JavaLanguageWrokerName:
@@ -952,7 +958,7 @@ namespace Microsoft.Azure.WebJobs.Script
                 string path = metadata.ScriptFile;
                 var typeName = Utility.GetFullClassName(metadata.EntryPoint);
 
-                Assembly assembly = Assembly.LoadFrom(path);
+                Assembly assembly = FunctionAssemblyLoadContext.Shared.LoadFromAssemblyPath(path);
                 var type = assembly.GetType(typeName);
                 if (type != null)
                 {
@@ -1015,8 +1021,6 @@ namespace Microsoft.Azure.WebJobs.Script
             // This should eventually replace all other ScriptBindingProvider
             bindingProviderTypes.Add(typeof(GeneralScriptBindingProvider));
 
-            bindingProviderTypes.Add(typeof(BuiltinExtensionBindingProvider));
-
             // Create the binding providers
             var bindingProviders = new Collection<ScriptBindingProvider>();
             foreach (var bindingProviderType in bindingProviderTypes)
@@ -1078,7 +1082,7 @@ namespace Microsoft.Azure.WebJobs.Script
             return functionMetadata;
         }
 
-        public static Collection<FunctionMetadata> ReadFunctionsMetadata(IEnumerable<string> functionDirectories, ILogger logger, Dictionary<string, Collection<string>> functionErrors, ScriptSettingsManager settingsManager = null, IEnumerable<string> functionWhitelist = null)
+        public static Collection<FunctionMetadata> ReadFunctionsMetadata(IEnumerable<string> functionDirectories, ILogger logger, Dictionary<string, Collection<string>> functionErrors, ScriptSettingsManager settingsManager = null, IEnumerable<string> functionWhitelist = null, IFileSystem fileSystem = null)
         {
             var functions = new Collection<FunctionMetadata>();
             settingsManager = settingsManager ?? ScriptSettingsManager.Instance;
@@ -1090,7 +1094,7 @@ namespace Microsoft.Azure.WebJobs.Script
 
             foreach (var scriptDir in functionDirectories)
             {
-                var function = ReadFunctionMetadata(scriptDir, functionErrors, settingsManager, functionWhitelist);
+                var function = ReadFunctionMetadata(scriptDir, functionErrors, settingsManager, functionWhitelist, fileSystem);
                 if (function != null)
                 {
                     functions.Add(function);
@@ -1100,7 +1104,7 @@ namespace Microsoft.Azure.WebJobs.Script
             return functions;
         }
 
-        public static FunctionMetadata ReadFunctionMetadata(string scriptDir, Dictionary<string, Collection<string>> functionErrors, ScriptSettingsManager settingsManager = null, IEnumerable<string> functionWhitelist = null)
+        public static FunctionMetadata ReadFunctionMetadata(string scriptDir, Dictionary<string, Collection<string>> functionErrors, ScriptSettingsManager settingsManager = null, IEnumerable<string> functionWhitelist = null, IFileSystem fileSystem = null)
         {
             string functionName = null;
 
@@ -1111,8 +1115,9 @@ namespace Microsoft.Azure.WebJobs.Script
                 string json = null;
                 try
                 {
-                    // This should be async
-                    json = FileUtility.ReadAllText(functionConfigPath);
+                    json = fileSystem != null
+                        ? fileSystem.File.ReadAllText(functionConfigPath)
+                        : FileUtility.ReadAllText(functionConfigPath);
                 }
                 catch (FileNotFoundException)
                 {
@@ -1135,7 +1140,7 @@ namespace Microsoft.Azure.WebJobs.Script
 
                 string functionError = null;
                 FunctionMetadata functionMetadata = null;
-                if (!TryParseFunctionMetadata(functionName, functionConfig, scriptDir, settingsManager, out functionMetadata, out functionError))
+                if (!TryParseFunctionMetadata(functionName, functionConfig, scriptDir, settingsManager, out functionMetadata, out functionError, fileSystem))
                 {
                     // for functions in error, log the error and don't
                     // add to the functions collection
@@ -1405,11 +1410,6 @@ namespace Microsoft.Azure.WebJobs.Script
                         ValidateFunction(descriptor, httpFunctions);
                         functionDescriptors.Add(descriptor);
                     }
-                    else
-                    {
-                        string functionLanguage = _settingsManager.Configuration[ScriptConstants.FunctionWorkerRuntimeSettingName];
-                        throw new ArgumentException($"Could not find a valid provider. {ScriptConstants.FunctionWorkerRuntimeSettingName} Appsetting is set to {functionLanguage}. Check that you have the correct language provider enabled and installed");
-                    }
                 }
                 catch (Exception ex)
                 {
@@ -1491,7 +1491,7 @@ namespace Microsoft.Azure.WebJobs.Script
             return httpTrigger.Methods.Intersect(otherHttpTrigger.Methods).Any();
         }
 
-        internal static void ApplyConfiguration(JObject config, ScriptHostConfiguration scriptConfig)
+        internal static void ApplyConfiguration(JObject config, ScriptHostConfiguration scriptConfig, ILogger logger = null)
         {
             var hostConfig = scriptConfig.HostConfig;
 
@@ -1600,6 +1600,7 @@ namespace Microsoft.Azure.WebJobs.Script
                 }
             }
 
+            value = null;
             if (config.TryGetValue("functionTimeout", out value))
             {
                 TimeSpan requestedTimeout = TimeSpan.Parse((string)value, CultureInfo.InvariantCulture);

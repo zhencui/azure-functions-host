@@ -5,7 +5,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Net.Http;
 using System.Threading.Tasks;
+using Microsoft.Azure.WebJobs.Script.Config;
 using Microsoft.Azure.WebJobs.Script.WebHost.Models;
 using Microsoft.Extensions.Logging;
 
@@ -16,19 +18,26 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
         private static HostAssignmentContext _assignmentContext;
         private static object _assignmentLock = new object();
 
-        private readonly ScriptHostManager _scriptHostManager;
         private readonly WebHostSettings _webHostSettings;
         private readonly ILogger _logger;
+        private readonly ScriptSettingsManager _settingsManager;
+        private readonly HttpClient _client;
 
-        public InstanceManager(WebScriptHostManager scriptHostManager, WebHostSettings webHostSettings, ILoggerFactory loggerFactory)
+        public InstanceManager(ScriptSettingsManager settingsManager, WebHostSettings webHostSettings, ILoggerFactory loggerFactory, HttpClient client)
         {
-            _scriptHostManager = scriptHostManager;
+            _settingsManager = settingsManager;
             _webHostSettings = webHostSettings;
             _logger = loggerFactory.CreateLogger(nameof(InstanceManager));
+            _client = client;
         }
 
         public bool StartAssignment(HostAssignmentContext assignmentContext)
         {
+            if (!WebScriptHostManager.InStandbyMode)
+            {
+                return false;
+            }
+
             if (_assignmentContext == null)
             {
                 lock (_assignmentLock)
@@ -56,11 +65,10 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
         {
             try
             {
-                // download zip
                 var zip = assignmentContext.ZipUrl;
-
                 if (!string.IsNullOrEmpty(zip))
                 {
+                    // download zip and extract
                     var filePath = Path.GetTempFileName();
 
                     await DownloadAsync(new Uri(zip), filePath);
@@ -74,8 +82,9 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
                     assignmentContext.ApplyAppSettings();
                 }
 
-                // Restart runtime.
-                _scriptHostManager.RestartHost();
+                // set flags which will trigger specialization
+                _settingsManager.SetSetting(EnvironmentSettingNames.AzureWebsitePlaceholderMode, "0");
+                _settingsManager.SetSetting(EnvironmentSettingNames.AzureWebsiteContainerReady, "1");
             }
             catch (Exception ex)
             {
@@ -83,9 +92,9 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
             }
         }
 
-        private static async Task DownloadAsync(Uri requestUri, string filePath)
+        private async Task DownloadAsync(Uri requestUri, string filePath)
         {
-            var response = await HttpClientUtility.Instance.GetAsync(requestUri);
+            var response = await _client.GetAsync(requestUri);
             if (!response.IsSuccessStatusCode)
             {
                 throw new InvalidDataException($"Error downloading zip content {requestUri.Authority}/{requestUri.AbsolutePath}");

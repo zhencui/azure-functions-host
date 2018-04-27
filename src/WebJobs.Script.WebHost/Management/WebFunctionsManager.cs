@@ -11,10 +11,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Azure.WebJobs.Script.Description;
-using Microsoft.Azure.WebJobs.Script.Extensions;
 using Microsoft.Azure.WebJobs.Script.Management.Models;
 using Microsoft.Azure.WebJobs.Script.WebHost.Extensions;
-using Microsoft.Azure.WebJobs.Script.WebHost.Helpers;
 using Microsoft.Azure.WebJobs.Script.WebHost.Security;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -24,13 +22,21 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
 {
     public class WebFunctionsManager : IWebFunctionsManager
     {
+        private const string HubName = "HubName";
+        private const string TaskHubName = "taskHubName";
+        private const string Connection = "connection";
+        private const string DurableTaskStorageConnectionName = "azureStorageConnectionStringName";
+        private const string DurableTask = "durableTask";
+
         private readonly ScriptHostConfiguration _config;
         private readonly ILogger _logger;
+        private readonly HttpClient _client;
 
-        public WebFunctionsManager(WebHostSettings webSettings, ILoggerFactory loggerFactory)
+        public WebFunctionsManager(WebHostSettings webSettings, ILoggerFactory loggerFactory, HttpClient client)
         {
             _config = WebHostResolver.CreateScriptHostConfiguration(webSettings);
             _logger = loggerFactory?.CreateLogger(ScriptConstants.LogCategoryKeysController);
+            _client = client;
         }
 
         /// <summary>
@@ -125,7 +131,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
         /// <returns>(success, FunctionMetadataResponse)</returns>
         public async Task<(bool, FunctionMetadataResponse)> TryGetFunction(string name, HttpRequest request)
         {
-            var functionMetadata = ScriptHost.ReadFunctionMetadata(Path.Combine(_config.RootScriptPath, name), new Dictionary<string, Collection<string>>());
+            var functionMetadata = ScriptHost.ReadFunctionMetadata(Path.Combine(_config.RootScriptPath, name), new Dictionary<string, Collection<string>>(), fileSystem: FileUtility.Instance);
             if (functionMetadata != null)
             {
                 return (true, await functionMetadata.ToFunctionMetadataResponse(request, _config));
@@ -166,7 +172,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
         /// <returns>(success, error)</returns>
         public async Task<(bool success, string error)> TrySyncTriggers()
         {
-            var durableTaskHubName = await GetDurableTaskHubName();
+            var durableTaskConfig = await ReadDurableTaskConfig();
             var functionsTriggers = (await GetFunctionsMetadata()
                 .Select(f => f.ToFunctionTrigger(_config))
                 .WhenAll())
@@ -175,11 +181,19 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
                 {
                     // if we have a durableTask hub name and the function trigger is either orchestrationTrigger OR activityTrigger,
                     // add a property "taskHubName" with durable task hub name.
-                    if (durableTaskHubName != null
+                    if (durableTaskConfig.Any()
                         && (t["type"]?.ToString().Equals("orchestrationTrigger", StringComparison.OrdinalIgnoreCase) == true
                             || t["type"]?.ToString().Equals("activityTrigger", StringComparison.OrdinalIgnoreCase) == true))
                     {
-                        t["taskHubName"] = durableTaskHubName;
+                        if (durableTaskConfig.ContainsKey(HubName))
+                        {
+                            t[TaskHubName] = durableTaskConfig[HubName];
+                        }
+
+                        if (durableTaskConfig.ContainsKey(Connection))
+                        {
+                            t[Connection] = durableTaskConfig[Connection];
+                        }
                     }
                     return t;
                 });
@@ -211,7 +225,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
                 request.Headers.Add("x-ms-site-restricted-token", token);
                 request.Content = new StringContent(content, Encoding.UTF8, "application/json");
 
-                var response = await HttpClientUtility.Instance.SendAsync(request);
+                var response = await _client.SendAsync(request);
                 return response.IsSuccessStatusCode
                     ? (true, string.Empty)
                     : (false, $"Sync triggers failed with: {response.StatusCode}");
@@ -221,47 +235,61 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Management
         private IEnumerable<FunctionMetadata> GetFunctionsMetadata()
         {
             return ScriptHost
-                .ReadFunctionsMetadata(FileUtility.EnumerateDirectories(_config.RootScriptPath), _logger, new Dictionary<string, Collection<string>>());
+                .ReadFunctionsMetadata(FileUtility.EnumerateDirectories(_config.RootScriptPath), _logger, new Dictionary<string, Collection<string>>(), fileSystem: FileUtility.Instance);
         }
 
-        private async Task<string> GetDurableTaskHubName()
+        private async Task<Dictionary<string, string>> ReadDurableTaskConfig()
         {
             string hostJsonPath = Path.Combine(_config.RootScriptPath, ScriptConstants.HostMetadataFileName);
+            var config = new Dictionary<string, string>();
             if (FileUtility.FileExists(hostJsonPath))
             {
+                var hostJson = JObject.Parse(await FileUtility.ReadAsync(hostJsonPath));
+                JToken durableTaskValue;
+
+                // we will allow case insensitivity given it is likely user hand edited
+                // see https://github.com/Azure/azure-functions-durable-extension/issues/111
+                //
                 // We're looking for {VALUE}
                 // {
                 //     "durableTask": {
-                //         "HubName": "{VALUE}"
+                //         "hubName": "{VALUE}",
+                //         "azureStorageConnectionStringName": "{VALUE}"
                 //     }
                 // }
-                var hostJson = JsonConvert.DeserializeObject<HostJsonModel>(await FileUtility.ReadAsync(hostJsonPath));
-                return hostJson?.DurableTask?.HubName;
+                if (hostJson.TryGetValue(DurableTask, StringComparison.OrdinalIgnoreCase, out durableTaskValue) && durableTaskValue != null)
+                {
+                    try
+                    {
+                        var kvp = (JObject)durableTaskValue;
+                        if (kvp.TryGetValue(HubName, StringComparison.OrdinalIgnoreCase, out JToken nameValue) && nameValue != null)
+                        {
+                            config.Add(HubName, nameValue.ToString());
+                        }
+
+                        if (kvp.TryGetValue(DurableTaskStorageConnectionName, StringComparison.OrdinalIgnoreCase, out nameValue) && nameValue != null)
+                        {
+                            config.Add(Connection, nameValue.ToString());
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        throw new InvalidDataException("Invalid host.json configuration for 'durableTask'.");
+                    }
+                }
             }
 
-            return null;
+            return config;
         }
 
         private void DeleteFunctionArtifacts(FunctionMetadataResponse function)
         {
-            // TODO: clear secrets
-            // TODO: clear logs
             var testDataPath = function.GetFunctionTestDataFilePath(_config);
 
             if (!string.IsNullOrEmpty(testDataPath))
             {
                 FileUtility.DeleteFileSafe(testDataPath);
             }
-        }
-
-        private class HostJsonModel
-        {
-            public DurableTaskHostModel DurableTask { get; set; }
-        }
-
-        private class DurableTaskHostModel
-        {
-            public string HubName { get; set; }
         }
     }
 }
