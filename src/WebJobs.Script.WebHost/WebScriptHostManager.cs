@@ -135,14 +135,17 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
         /// Ensures that the host has been fully initialized and startup
         /// has been initiated. This method is idempotent.
         /// </summary>
-        public Task RunAsync(CancellationToken cancellationToken)
+        public Task EnsureHostStarted(CancellationToken cancellationToken)
         {
-            lock (_syncLock)
+            if (!_hostStarted)
             {
-                if (!_hostStarted)
+                lock (_syncLock)
                 {
-                    _runTask = Task.Run(() => RunAndBlock(cancellationToken));
-                    _hostStarted = true;
+                    if (!_hostStarted)
+                    {
+                        _runTask = Task.Run(() => RunAndBlock(cancellationToken));
+                        _hostStarted = true;
+                    }
                 }
             }
 

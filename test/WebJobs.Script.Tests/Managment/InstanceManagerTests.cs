@@ -16,7 +16,7 @@ namespace Microsoft.Azure.WebJobs.Script.Tests.Managment
     public class InstanceManagerTests
     {
         [Fact]
-        public async Task StartAssignment_AppliesAssignmentContext()
+        public async Task Assign_AppliesAssignmentContext()
         {
             var loggerFactory = MockNullLogerFactory.CreateLoggerFactory();
             var settingsManager = new ScriptSettingsManager();
@@ -36,7 +36,7 @@ namespace Microsoft.Azure.WebJobs.Script.Tests.Managment
                     { envValue.Name, envValue.Value }
                 }
             };
-            bool result = instanceManager.StartAssignment(context);
+            bool result = await instanceManager.Assign(context);
             Assert.True(result);
 
             // specialization is done in the background
@@ -47,12 +47,12 @@ namespace Microsoft.Azure.WebJobs.Script.Tests.Managment
 
             // calling again should return false, since we're no longer
             // in placeholder mode
-            result = instanceManager.StartAssignment(context);
+            result = await instanceManager.Assign(context);
             Assert.False(result);
         }
 
         [Fact]
-        public void StartAssignment_ReturnsFalse_WhenNotInStandbyMode()
+        public async Task Assign_ReturnsFalse_WhenNotInStandbyMode()
         {
             var loggerFactory = MockNullLogerFactory.CreateLoggerFactory();
             var settingsManager = new ScriptSettingsManager();
@@ -61,7 +61,7 @@ namespace Microsoft.Azure.WebJobs.Script.Tests.Managment
             Assert.False(WebScriptHostManager.InStandbyMode);
 
             var context = new HostAssignmentContext();
-            bool result = instanceManager.StartAssignment(context);
+            bool result = await instanceManager.Assign(context);
             Assert.False(result);
         }
     }

@@ -33,23 +33,15 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
         [HttpPost]
         [Route("admin/instance/assign")]
         [Authorize(Policy = PolicyNames.AdminAuthLevel)]
-        public IActionResult Assign([FromBody] EncryptedHostAssignmentContext encryptedAssignmentContext)
+        public async Task<IActionResult> Assign([FromBody] EncryptedHostAssignmentContext encryptedAssignmentContext)
         {
             var containerKey = _settingsManager.GetSetting(EnvironmentSettingNames.ContainerEncryptionKey);
             var assignmentContext = encryptedAssignmentContext.Decrypt(containerKey);
-            return _instanceManager.StartAssignment(assignmentContext)
+            var result = await _instanceManager.Assign(assignmentContext);
+
+            return result
                 ? Accepted()
                 : StatusCode(StatusCodes.Status409Conflict, "Instance already assigned");
-        }
-
-        [HttpGet]
-        [Route("admin/instance/status")]
-        [Authorize(Policy = PolicyNames.AdminAuthLevel)]
-        public async Task<IActionResult> GetInstanceStatus([FromQuery] int timeout = int.MaxValue)
-        {
-            return await _scriptHostManager.DelayUntilHostReady(timeoutSeconds: timeout)
-                ? Ok()
-                : StatusCode(StatusCodes.Status503ServiceUnavailable);
         }
 
         [HttpGet]
