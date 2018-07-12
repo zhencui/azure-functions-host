@@ -3,11 +3,15 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.ApplicationInsights.SnapshotCollector;
 using Microsoft.Azure.WebJobs.Logging.ApplicationInsights;
 using Microsoft.Azure.WebJobs.Script.Config;
 using Microsoft.Azure.WebJobs.Script.Diagnostics;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
+using Newtonsoft.Json;
 
 namespace Microsoft.Azure.WebJobs.Script
 {
@@ -28,8 +32,24 @@ namespace Microsoft.Azure.WebJobs.Script
             {
                 metricsLogger?.LogEvent(MetricEventNames.ApplicationInsightsEnabled);
 
+
+                SnapshotCollectorConfiguration snapshotCollectorConfiguration = null;
+                if (!string.IsNullOrEmpty(settingsManager?.SnapshotCollectorConfiguration))
+                {
+                    try
+                    {
+                        IConfigurationSection configSection = settingsManager?.Configuration?.GetSection("SnapshotCollectorConfiguration");
+                        snapshotCollectorConfiguration = configSection.Get<SnapshotCollectorConfiguration>();
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+                }
+
                 ITelemetryClientFactory clientFactory = scriptConfig.HostConfig.GetService<ITelemetryClientFactory>() ??
-                    new ScriptTelemetryClientFactory(settingsManager.ApplicationInsightsInstrumentationKey, scriptConfig.ApplicationInsightsSamplingSettings, scriptConfig.LogFilter.Filter);
+                    new ScriptTelemetryClientFactory(settingsManager.ApplicationInsightsInstrumentationKey, scriptConfig.ApplicationInsightsSamplingSettings,
+                    snapshotCollectorConfiguration, scriptConfig.LogFilter.Filter);
 
                 providers.Add(new ApplicationInsightsLoggerProvider(clientFactory));
             }
